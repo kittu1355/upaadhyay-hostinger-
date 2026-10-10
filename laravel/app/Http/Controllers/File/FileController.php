@@ -37,8 +37,14 @@ class FileController extends Controller
         $file = $this->uploads->upload($r->file('file'), $user, $category);
         $ref = $file->url ?? $file->storage_path;
 
-        if ($category === 'profile_photo') $user->candidateProfile()->updateOrCreate([], ['profile_photo' => $ref]);
-        if ($category === 'company_logo' && $user->isCompany()) $user->company()->update(['logo' => $ref]);
+        try {
+            if ($category === 'profile_photo') $user->candidateProfile()->updateOrCreate([], ['profile_photo' => $ref]);
+            if ($category === 'company_logo' && $user->isCompany()) $user->company()->update(['logo' => $ref]);
+        } catch (\Throwable $e) {
+            $this->uploads->delete($file);   // reference update failed: keep the old file, drop the new one
+            throw $e;
+        }
+        // Replacement succeeded -> now (and only now) remove the previous objects. A failed delete keeps its row and is retried next upload.
         if (in_array($category, ['profile_photo', 'company_logo'], true)) $old->each(fn ($f) => $this->uploads->delete($f));
 
         return ApiResponse::created($file, 'File uploaded');
@@ -55,6 +61,16 @@ class FileController extends Controller
         ]);
     }
 
+    /** Public images only (profile photos, logos, job images, videos): redirects to a short-lived storage URL. Private categories -> 404. */
+    public function view(int $id)
+    {
+        $file = File::findOrFail($id);
+        abort_if($this->uploads->isPrivate($file->category), 404);
+        $to = $this->uploads->publicRedirectUrl($file);
+        abort_unless($to, 404);
+        return redirect()->away($to, 302, ['Cache-Control' => 'public, max-age=300']);
+    }
+
     /** Signed (no bearer token needed): streams the stored file. */
     public function download(int $id)
     {
@@ -67,7 +83,7 @@ class FileController extends Controller
         Gate::forUser($r->user())->authorize('delete', $file);
 
         $ref = $file->url ?? $file->storage_path;
-        $this->uploads->delete($file);
+        if (! $this->uploads->delete($file)) return ApiResponse::error('Could not delete the file from storage. Please try again.', 502);
         \App\Models\CandidateProfile::where('user_id', $file->user_id)->where('profile_photo', $ref)->update(['profile_photo' => null]);
         \App\Models\Company::where('user_id', $file->user_id)->where('logo', $ref)->update(['logo' => null]);
 
