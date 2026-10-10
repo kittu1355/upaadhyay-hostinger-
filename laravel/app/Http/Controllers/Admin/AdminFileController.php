@@ -23,7 +23,7 @@ class AdminFileController extends Controller
     {
         $file = File::findOrFail($id);
         $ref = $file->url ?? $file->storage_path;
-        $uploads->delete($file);
+        if (! $uploads->delete($file)) return ApiResponse::error('Could not delete the file from storage. Please try again.', 502);
         \App\Models\CandidateProfile::where('profile_photo', $ref)->update(['profile_photo' => null]);
         \App\Models\Company::where('logo', $ref)->update(['logo' => null]);
         return ApiResponse::success(null, 'File deleted');
