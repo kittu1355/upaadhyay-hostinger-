@@ -10,7 +10,7 @@ class File extends Model
     public const CATEGORIES = ['profile_photo', 'resume', 'certificate', 'company_logo', 'job_image', 'video', 'other'];
 
     protected $fillable = [
-        'user_id', 'file_name', 'original_name', 'file_type', 'file_size', 'storage_path', 'url', 'category',
+        'user_id', 'file_name', 'original_name', 'file_type', 'file_size', 'storage_path', 'disk', 'url', 'category',
     ];
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
