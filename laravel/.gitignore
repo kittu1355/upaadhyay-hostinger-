@@ -1,1 +1,11 @@
-
+/vendor
+/node_modules
+.env
+.env.*
+!.env.example
+/storage/*.key
+/storage/logs/*
+/public/uploads/*
+!/public/uploads/.gitkeep
+.phpunit.result.cache
+.DS_Store
