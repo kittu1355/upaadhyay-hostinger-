@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Never serve the Laravel app (.env, code, storage) or git data
+RewriteRule ^laravel(/|$) - [F,L]
+RewriteRule ^\.git - [F,L]
+
+# Send every other request into the api-subdomain folder
+RewriteCond %{REQUEST_URI} !^/api-subdomain/
+RewriteRule ^(.*)$ api-subdomain/$1 [L]
