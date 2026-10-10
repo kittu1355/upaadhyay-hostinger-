@@ -31,6 +31,9 @@ Route::middleware('throttle:api')->group(function () {
 // ---------- Signed private-file download (link comes from GET /files/{id}/link) ----------
 Route::get('files/{id}/download', [FileController::class, 'download'])->whereNumber('id')->middleware(['signed', 'throttle:api'])->name('files.download');
 
+// Public images (logos/photos/job images): redirect to a short-lived storage URL. Private categories return 404.
+Route::get('files/{id}/view', [FileController::class, 'view'])->whereNumber('id')->middleware('throttle:api')->name('files.view');
+
 // ---------- Authenticated ----------
 Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
