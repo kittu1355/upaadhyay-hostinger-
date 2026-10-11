@@ -34,6 +34,10 @@ class FileController extends Controller
         }
 
         $old = $user->files()->where('category', $category)->get(); // one photo/logo at a time
+        // Any other slot (job/branch image, documents): the caller names the file this one replaces. Own files, same category only.
+        $replaced = $r->filled('replaces')
+            ? $user->files()->where('category', $category)->whereKey((int) $r->input('replaces'))->first()
+            : null;
         $file = $this->uploads->upload($r->file('file'), $user, $category);
         $ref = $file->url ?? $file->storage_path;
 
@@ -46,6 +50,7 @@ class FileController extends Controller
         }
         // Replacement succeeded -> now (and only now) remove the previous objects. A failed delete keeps its row and is retried next upload.
         if (in_array($category, ['profile_photo', 'company_logo'], true)) $old->each(fn ($f) => $this->uploads->delete($f));
+        elseif ($replaced && $replaced->id !== $file->id) $this->uploads->delete($replaced);
 
         return ApiResponse::created($file, 'File uploaded');
     }
