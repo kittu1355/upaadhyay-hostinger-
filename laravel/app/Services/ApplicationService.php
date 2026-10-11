@@ -28,6 +28,9 @@ class ApplicationService
 
         if (! empty($d['resume_id'])) {
             abort_unless($candidate->resumes()->whereKey($d['resume_id'])->exists(), 422, 'Choose one of your own resumes.');
+        } else {
+            // No resume chosen (the website sends none): attach the primary one so the employer receives it with the application.
+            $d['resume_id'] = $candidate->resumes()->where('is_primary', true)->value('id') ?? $candidate->resumes()->latest('id')->value('id');
         }
 
         $existing = Application::where('job_id', $job->id)->where('candidate_id', $candidate->id)->first();
