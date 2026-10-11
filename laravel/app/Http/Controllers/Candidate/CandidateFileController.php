@@ -23,14 +23,20 @@ class CandidateFileController extends Controller
         $user = $r->user();
         abort_if($user->resumes()->count() >= 5, 422, 'You can store up to 5 resumes. Delete one first.');
 
-        $resume = DB::transaction(function () use ($r, $user) {
-            $file = $this->uploads->upload($r->file('file'), $user, 'resume');
-            $primary = $r->boolean('is_primary') || ! $user->resumes()->exists();
-            if ($primary) $user->resumes()->update(['is_primary' => false]);
-            return $user->resumes()->create([
-                'file_id' => $file->id, 'title' => $r->input('title', $file->original_name), 'is_primary' => $primary,
-            ]);
-        });
+        $stored = null;
+        try {
+            $resume = DB::transaction(function () use ($r, $user, &$stored) {
+                $file = $stored = $this->uploads->upload($r->file('file'), $user, 'resume');
+                $primary = $r->boolean('is_primary') || ! $user->resumes()->where('is_primary', true)->exists();
+                if ($primary) $user->resumes()->update(['is_primary' => false]);
+                return $user->resumes()->create([
+                    'file_id' => $file->id, 'title' => $r->input('title', $file->original_name), 'is_primary' => $primary,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            if ($stored) $this->uploads->delete($stored);   // DB part failed after the object was stored: don't leave it orphaned
+            throw $e;
+        }
         return ApiResponse::created($resume->load('file'), 'Resume uploaded');
     }
 
@@ -44,12 +50,18 @@ class CandidateFileController extends Controller
             'issued_date' => ['nullable', 'date'],
         ]);
         $user = $r->user();
-        $cert = DB::transaction(function () use ($r, $user) {
-            $file = $this->uploads->upload($r->file('file'), $user, 'certificate');
-            return $user->certificates()->create([
-                'file_id' => $file->id, 'name' => $r->name, 'issuer' => $r->issuer, 'issued_date' => $r->issued_date,
-            ]);
-        });
+        $stored = null;
+        try {
+            $cert = DB::transaction(function () use ($r, $user, &$stored) {
+                $file = $stored = $this->uploads->upload($r->file('file'), $user, 'certificate');
+                return $user->certificates()->create([
+                    'file_id' => $file->id, 'name' => $r->name, 'issuer' => $r->issuer, 'issued_date' => $r->issued_date,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            if ($stored) $this->uploads->delete($stored);
+            throw $e;
+        }
         return ApiResponse::created($cert->load('file'), 'Certificate uploaded');
     }
 }
