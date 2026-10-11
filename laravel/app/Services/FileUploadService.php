@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\CandidateProfile;
+use App\Models\Certificate;
+use App\Models\Company;
 use App\Models\File;
+use App\Models\Resume;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -96,8 +100,21 @@ class FileUploadService
      */
     public function delete(File $file): bool
     {
+        // Capture what depends on this file BEFORE the row goes (FKs null/cascade them away).
+        $ref = $file->url ?? $file->storage_path;
+        $userId = $file->user_id;
+        $category = $file->category;
+        $certIds = $category === 'certificate' ? Certificate::where('file_id', $file->id)->pluck('id')->all() : [];
+        $wasPrimaryResume = $category === 'resume' && Resume::where('file_id', $file->id)->where('is_primary', true)->exists();
+
         if (! $this->removeObject($this->diskFor($file), $file->storage_path)) return false;
         $file->delete();
+
+        // Keep the account data consistent with what is actually stored.
+        if ($certIds) Certificate::whereIn('id', $certIds)->delete();                       // no certificate row without its file
+        if ($wasPrimaryResume) Resume::where('user_id', $userId)->latest('id')->first()?->update(['is_primary' => true]);
+        if ($category === 'profile_photo') CandidateProfile::where('user_id', $userId)->where('profile_photo', $ref)->update(['profile_photo' => null]);
+        if ($category === 'company_logo') Company::where('user_id', $userId)->where('logo', $ref)->update(['logo' => null]);
         return true;
     }
 
