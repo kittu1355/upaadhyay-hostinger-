@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('institutions', [Company\BranchController::class, 'lookup'])->middleware('throttle:api');
 Route::get('categories', fn () => \App\Support\ApiResponse::success(\App\Models\Category::orderBy('id')->get(['id', 'name', 'slug'])));
 Route::get('/ping', fn () => response()->json(['success' => true, 'message' => 'pong', 'data' => null]));
+// Upload rules (types + max size per category) so the frontend checks exactly what the backend enforces.
+Route::get('limits', fn () => \App\Support\ApiResponse::success(['categories' => config('uploads.categories')]))->middleware('throttle:api');
 
 // ---------- Public auth ----------
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
@@ -38,6 +40,8 @@ Route::get('files/{id}/view', [FileController::class, 'view'])->whereNumber('id'
 Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::put('auth/password', [AuthController::class, 'changePassword']);
+    Route::delete('auth/account', [AuthController::class, 'deleteAccount']);
 
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);
@@ -67,6 +71,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::prefix('candidate')->middleware('role:candidate')->group(function () {
         Route::get('profile', [Candidate\CandidateProfileController::class, 'show']);
         Route::put('profile', [Candidate\CandidateProfileController::class, 'update']);
+        Route::delete('profile/photo', [Candidate\CandidateProfileController::class, 'removePhoto']);
 
         Route::get('education', [Candidate\EducationController::class, 'index']);
         Route::post('education', [Candidate\EducationController::class, 'store']);
@@ -91,6 +96,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::prefix('company')->middleware('role:company')->group(function () {
         Route::get('profile', [Company\CompanyProfileController::class, 'show']);
         Route::put('profile', [Company\CompanyProfileController::class, 'update']);
+        Route::delete('logo', [Company\CompanyProfileController::class, 'removeLogo']);
 
         Route::get('jobs', [Company\CompanyJobController::class, 'index']);
         Route::post('jobs', [Company\CompanyJobController::class, 'store']);
