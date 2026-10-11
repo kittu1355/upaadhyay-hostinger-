@@ -13,6 +13,15 @@ class JobRequest extends FormRequest
     public function rules(): array
     {
         $req = $this->isMethod('post') ? 'required' : 'sometimes';
+        // On edit, keep an already-saved (now past) deadline as it is: only a NEW/changed deadline must be today or later.
+        // Otherwise closing or editing an old job would be rejected just because its deadline has passed.
+        $deadline = ['nullable', 'date', 'after_or_equal:today'];
+        if (! $this->isMethod('post')) {
+            $current = Job::whereKey((int) $this->route('id'))->value('application_deadline');
+            if ($current && substr((string) $this->input('application_deadline'), 0, 10) === substr((string) $current, 0, 10)) {
+                $deadline = ['nullable', 'date'];
+            }
+        }
         return [
             'title' => [$req, 'string', 'max:190'],
             'description' => [$req, 'string'],
@@ -27,7 +36,7 @@ class JobRequest extends FormRequest
             'salary_min' => ['nullable', 'numeric', 'min:0'],
             'salary_max' => ['nullable', 'numeric', 'gte:salary_min'],
             'vacancy_count' => ['nullable', 'integer', 'min:1'],
-            'application_deadline' => ['nullable', 'date', 'after_or_equal:today'],
+            'application_deadline' => $deadline,
             'status' => ['nullable', Rule::in(['draft', 'published', 'closed'])],
             'meta' => ['nullable', 'array', function (string $attr, $value, $fail) {
                 if (strlen(json_encode($value)) > 20000) $fail('Job details are too large.');
