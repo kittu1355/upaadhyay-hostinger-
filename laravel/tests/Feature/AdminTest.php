@@ -37,6 +37,54 @@ class AdminTest extends TestCase
         $this->assertTrue($co->notifications()->where('type', 'company_approved')->exists());
     }
 
+    public function test_admin_sees_full_company_profile_with_documents(): void
+    {
+        $co = $this->company('pending');
+        $co->company->update(['profile_data' => ['inst' => ['d' => ['name' => 'Co X', 'city' => 'Hyderabad']]]]);
+        $doc = \App\Models\File::create([
+            'user_id' => $co->id, 'file_name' => 'a.pdf', 'original_name' => 'registration.pdf', 'file_type' => 'application/pdf',
+            'file_size' => 1200, 'storage_path' => 'x/a.pdf', 'disk' => 'local', 'category' => 'other',
+        ]);
+        // a resume-type file must never be listed as an institution document
+        \App\Models\File::create([
+            'user_id' => $co->id, 'file_name' => 'r.pdf', 'original_name' => 'resume.pdf', 'file_type' => 'application/pdf',
+            'file_size' => 900, 'storage_path' => 'x/r.pdf', 'disk' => 'local', 'category' => 'resume',
+        ]);
+
+        Sanctum::actingAs($this->candidate());
+        $this->getJson('/api/admin/companies/'.$co->company->id)->assertForbidden();
+
+        Sanctum::actingAs($this->admin());
+        $this->getJson('/api/admin/companies/'.$co->company->id)->assertOk()
+            ->assertJsonPath('data.company.profile_data.inst.d.city', 'Hyderabad')
+            ->assertJsonPath('data.company.user.email', $co->email)
+            ->assertJsonCount(1, 'data.files')
+            ->assertJsonPath('data.files.0.id', $doc->id)
+            ->assertJsonMissingPath('data.files.0.storage_path')
+            ->assertJsonStructure(['data' => ['company', 'files', 'branches', 'stats' => ['jobs', 'live_jobs', 'applications']]]);
+        $this->getJson('/api/admin/companies/999999')->assertNotFound();
+        // admins may open any institution document through the signed-link endpoint
+        $this->getJson('/api/files/'.$doc->id.'/link')->assertOk();
+    }
+
+    public function test_reject_sends_reason_and_approve_unlocks(): void
+    {
+        $co = $this->company('pending');
+        Sanctum::actingAs($this->admin());
+
+        $this->putJson('/api/admin/companies/'.$co->company->id.'/reject', ['reason' => 'Registration proof is unreadable'])->assertOk();
+        $this->assertSame('rejected', Company::first()->verification_status);
+        $n = $co->notifications()->where('type', 'company_rejected')->first();
+        $this->assertStringContainsString('Registration proof is unreadable', $n->message);
+
+        $this->putJson('/api/admin/companies/'.$co->company->id.'/reject', ['reason' => str_repeat('x', 501)])->assertStatus(422);
+
+        $this->putJson('/api/admin/companies/'.$co->company->id.'/approve')->assertOk();
+        $this->assertSame('approved', Company::first()->verification_status);
+        $this->getJson('/api/admin/dashboard')->assertOk()->assertJsonPath('data.companies_by_status.approved', 1)
+            ->assertJsonPath('data.companies_by_status.pending', 0);
+    }
+
     public function test_blocking_user_and_company_unpublishes_jobs(): void
     {
         $co = $this->company();
