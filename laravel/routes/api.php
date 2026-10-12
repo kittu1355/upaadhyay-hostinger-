@@ -123,6 +123,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::put('users/{id}/block', [Admin\AdminUserController::class, 'block']);
         Route::put('users/{id}/unblock', [Admin\AdminUserController::class, 'unblock']);
         Route::get('companies', [Admin\AdminCompanyController::class, 'index']);
+        Route::get('companies/{id}', [Admin\AdminCompanyController::class, 'show'])->whereNumber('id');
         Route::put('companies/{id}/approve', [Admin\AdminCompanyController::class, 'approve']);
         Route::put('companies/{id}/reject', [Admin\AdminCompanyController::class, 'reject']);
         Route::put('companies/{id}/block', [Admin\AdminCompanyController::class, 'block']);
