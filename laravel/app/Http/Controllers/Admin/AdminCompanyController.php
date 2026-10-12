@@ -7,6 +7,7 @@ use App\Models\Application;
 use App\Models\Company;
 use App\Models\File;
 use App\Services\AdminService;
+use App\Services\FileUploadService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
@@ -67,5 +68,29 @@ class AdminCompanyController extends Controller
     {
         $d = $r->validate(['reason' => ['nullable', 'string', 'max:500']]);
         return ApiResponse::success($this->admin->setCompanyStatus(Company::findOrFail($id), 'blocked', $d['reason'] ?? null), 'Company blocked');
+    }
+
+    public function update(Request $r, int $id)
+    {
+        $company = Company::findOrFail($id);
+        $d = $r->validate([
+            'company_name' => ['sometimes', 'required', 'string', 'max:190'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'website' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:190'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'industry' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'company_size' => ['sometimes', 'nullable', 'string', 'max:60'],
+        ]);
+        return ApiResponse::success($this->admin->updateCompany($company, $d), 'Company updated');
+    }
+
+    public function destroy(int $id, FileUploadService $uploads)
+    {
+        $this->admin->deleteCompany(Company::with('user')->findOrFail($id), $uploads);
+        return ApiResponse::success(null, 'Company deleted');
     }
 }
