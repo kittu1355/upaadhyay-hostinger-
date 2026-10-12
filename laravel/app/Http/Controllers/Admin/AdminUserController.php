@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AdminService;
+use App\Services\FileUploadService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
@@ -32,5 +33,29 @@ class AdminUserController extends Controller
     public function unblock(int $id)
     {
         return ApiResponse::success($this->admin->setUserStatus(User::findOrFail($id), 'active'), 'User unblocked');
+    }
+
+    public function show(int $id)
+    {
+        return ApiResponse::success(User::with(['candidateProfile', 'company:id,user_id,company_name'])->findOrFail($id));
+    }
+
+    public function update(Request $r, int $id)
+    {
+        $user = User::findOrFail($id);
+        $d = $r->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:190'],
+            'email' => ['sometimes', 'required', 'email', 'max:190', 'unique:users,email,'.$user->id],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'status' => ['sometimes', 'in:active,blocked'],
+        ]);
+        if (isset($d['email'])) $d['email'] = strtolower($d['email']);
+        return ApiResponse::success($this->admin->updateUser($user, $d), 'User updated');
+    }
+
+    public function destroy(int $id, FileUploadService $uploads)
+    {
+        $this->admin->deleteUser(User::findOrFail($id), $uploads);
+        return ApiResponse::success(null, 'User deleted');
     }
 }
