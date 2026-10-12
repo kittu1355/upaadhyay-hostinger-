@@ -110,4 +110,38 @@ class AdminTest extends TestCase
         $this->postJson('/api/admin/notifications', ['title' => 'Hello', 'role' => 'candidate'])->assertCreated()->assertJsonPath('data.recipients', 1);
         $this->assertTrue($cand->notifications()->where('type', 'system')->exists());
     }
+
+    public function test_admin_login_accepts_only_admins(): void
+    {
+        $admin = $this->admin();
+        $this->postJson('/api/admin/login', ['email' => $admin->email, 'password' => 'password'])
+            ->assertOk()->assertJsonPath('data.user.role', 'admin')->assertJsonStructure(['data' => ['token']]);
+
+        $cand = $this->candidate();
+        $this->postJson('/api/admin/login', ['email' => $cand->email, 'password' => 'password'])->assertStatus(422);
+        $this->assertSame(0, $cand->tokens()->count());
+        $this->postJson('/api/admin/login', ['email' => $admin->email, 'password' => 'wrong-pass'])->assertStatus(422);
+    }
+
+    public function test_admin_edits_and_deletes_users_and_companies(): void
+    {
+        $cand = $this->candidate();
+        $co = $this->company();
+        Sanctum::actingAs($cand);
+        $this->putJson("/api/admin/users/{$cand->id}", ['name' => 'X'])->assertForbidden();
+
+        Sanctum::actingAs($this->admin());
+        $this->putJson("/api/admin/users/{$cand->id}", ['name' => 'Renamed Faculty', 'phone' => '9999900000'])->assertOk()->assertJsonPath('data.name', 'Renamed Faculty');
+        $this->putJson("/api/admin/users/{$cand->id}", ['email' => $co->email])->assertStatus(422);   // email already taken
+        $this->putJson('/api/admin/companies/'.$co->company->id, ['company_name' => 'Edited Institute', 'city' => 'Vijayawada'])
+            ->assertOk()->assertJsonPath('data.company_name', 'Edited Institute');
+
+        $this->deleteJson("/api/admin/users/{$cand->id}")->assertOk();
+        $this->assertDatabaseMissing('users', ['id' => $cand->id]);
+        $this->deleteJson('/api/admin/companies/'.$co->company->id)->assertOk();
+        $this->assertDatabaseMissing('companies', ['id' => $co->company->id]);
+
+        $adminId = $this->admin()->id;
+        $this->deleteJson("/api/admin/users/{$adminId}")->assertForbidden();   // admins are protected
+    }
 }
