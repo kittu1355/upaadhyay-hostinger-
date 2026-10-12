@@ -24,6 +24,9 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
 });
 
+// ---------- Admin sign-in (administrators only) ----------
+Route::post('admin/login', [Admin\AdminAuthController::class, 'login'])->middleware('throttle:auth');
+
 // ---------- Public job browsing ----------
 Route::middleware('throttle:api')->group(function () {
     Route::get('jobs', [JobController::class, 'index']);
@@ -120,10 +123,15 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('dashboard', [Admin\DashboardController::class, 'index']);
         Route::get('users', [Admin\AdminUserController::class, 'index']);
+        Route::get('users/{id}', [Admin\AdminUserController::class, 'show'])->whereNumber('id');
+        Route::put('users/{id}', [Admin\AdminUserController::class, 'update'])->whereNumber('id');
+        Route::delete('users/{id}', [Admin\AdminUserController::class, 'destroy'])->whereNumber('id');
         Route::put('users/{id}/block', [Admin\AdminUserController::class, 'block']);
         Route::put('users/{id}/unblock', [Admin\AdminUserController::class, 'unblock']);
         Route::get('companies', [Admin\AdminCompanyController::class, 'index']);
         Route::get('companies/{id}', [Admin\AdminCompanyController::class, 'show'])->whereNumber('id');
+        Route::put('companies/{id}', [Admin\AdminCompanyController::class, 'update'])->whereNumber('id');
+        Route::delete('companies/{id}', [Admin\AdminCompanyController::class, 'destroy'])->whereNumber('id');
         Route::put('companies/{id}/approve', [Admin\AdminCompanyController::class, 'approve']);
         Route::put('companies/{id}/reject', [Admin\AdminCompanyController::class, 'reject']);
         Route::put('companies/{id}/block', [Admin\AdminCompanyController::class, 'block']);
@@ -132,6 +140,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::put('jobs/{id}/unpublish', [Admin\AdminJobController::class, 'unpublish']);
         Route::delete('jobs/{id}', [Admin\AdminJobController::class, 'destroy']);
         Route::get('applications', [Admin\AdminApplicationController::class, 'index']);
+        Route::delete('applications/{id}', [Admin\AdminApplicationController::class, 'destroy'])->whereNumber('id');
         Route::get('files', [Admin\AdminFileController::class, 'index']);
         Route::delete('files/{id}', [Admin\AdminFileController::class, 'destroy']);
         Route::get('notifications', [Admin\AdminNotificationController::class, 'index']);
