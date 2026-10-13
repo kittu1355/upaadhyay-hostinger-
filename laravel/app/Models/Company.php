@@ -12,7 +12,7 @@ class Company extends Model
 
     protected $fillable = [
         'user_id', 'company_name', 'logo', 'description', 'website', 'email', 'phone',
-        'industry', 'location', 'city', 'state', 'company_size', 'verification_status', 'profile_data', 'parent_id', 'institution_code', 'branch_status',
+        'industry', 'location', 'city', 'state', 'company_size', 'verification_status', 'profile_data', 'parent_id', 'institution_code', 'branch_status', 'branch_admin_status', 'branch_submitted_at', 'branch_note',
     ];
 
     protected $casts = ['profile_data' => 'array'];
@@ -31,5 +31,10 @@ class Company extends Model
     public function branches(): HasMany { return $this->hasMany(Company::class, 'parent_id'); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function jobs(): HasMany { return $this->hasMany(Job::class); }
+    /** A sub-branch is live only when BOTH its main institution and an admin approved it. */
+    public function branchFullyApproved(): bool
+    {
+        return $this->parent_id && $this->branch_status === 'approved' && $this->branch_admin_status === 'approved';
+    }
     public function isApproved(): bool { return $this->verification_status === 'approved'; }
 }
