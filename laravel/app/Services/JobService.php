@@ -153,8 +153,8 @@ class JobService
 
     private function guardPublish(Company $company, string $status): void
     {
-        if ($status === 'published' && $company->parent_id && $company->branch_status !== 'approved') {
-            throw new HttpResponseException(ApiResponse::error('Your sub-branch is waiting for the main institution to approve your request.', 403));
+        if ($status === 'published' && $company->parent_id && ! $company->branchFullyApproved()) {
+            throw new HttpResponseException(ApiResponse::error('Your sub-branch is waiting for approval from the main institution and the admin.', 403));
         }
         if ($status === 'published' && ! $company->isApproved()) {
             throw new HttpResponseException(ApiResponse::error('Your company is awaiting admin approval. You can save jobs as drafts until then.', 403));
