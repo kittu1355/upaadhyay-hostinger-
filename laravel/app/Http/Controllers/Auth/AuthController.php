@@ -26,7 +26,7 @@ class AuthController extends Controller
 
     public function login(LoginRequest $r)
     {
-        return ApiResponse::success($this->auth->login($r->email, $r->password), 'Login successful');
+        return ApiResponse::success($this->auth->login($r->email, $r->password, $r->input('role')), 'Login successful');
     }
 
     public function logout(Request $r)
