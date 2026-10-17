@@ -60,4 +60,57 @@ class AuthTest extends TestCase
         User::first()->update(['status' => 'blocked']);
         $this->postJson('/api/auth/login', ['email' => 'asha@example.com', 'password' => 'Password1'])->assertStatus(422);
     }
+
+    // ---------- role-isolated login ----------
+    private function seedThree(): void
+    {
+        $this->register(['email' => 'fac@example.com']);
+        $this->register(['email' => 'inst@example.com', 'role' => 'company', 'company_name' => 'Acme']);
+        User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => 'Password1', 'role' => 'admin', 'status' => 'active']);
+    }
+
+    private function loginAs(string $area, string $email)
+    {
+        return $this->postJson('/api/auth/login', ['email' => $email, 'password' => 'Password1', 'role' => $area]);
+    }
+
+    public function test_wrong_role_credentials_never_log_in_through_faculty_or_institution_area(): void
+    {
+        $this->seedThree();
+        $this->loginAs('candidate', 'admin@example.com')->assertStatus(422)->assertJsonMissingPath('data.token');
+        $this->loginAs('candidate', 'inst@example.com')->assertStatus(422)->assertJsonMissingPath('data.token');
+        $this->loginAs('company', 'fac@example.com')->assertStatus(422)->assertJsonMissingPath('data.token');
+        $this->loginAs('company', 'admin@example.com')->assertStatus(422)->assertJsonMissingPath('data.token');
+        $this->loginAs('candidate', 'nobody@example.com')->assertStatus(422);
+        $this->assertSame(0, \Laravel\Sanctum\PersonalAccessToken::count() - 2); // only the two register() tokens exist
+    }
+
+    public function test_matching_role_logs_in(): void
+    {
+        $this->seedThree();
+        $this->loginAs('candidate', 'fac@example.com')->assertOk()->assertJsonPath('data.user.role', 'candidate');
+        $this->loginAs('company', 'inst@example.com')->assertOk()->assertJsonPath('data.user.role', 'company');
+    }
+
+    public function test_admin_login_accepts_only_admins_and_mints_no_token_for_others(): void
+    {
+        $this->seedThree();
+        $before = \Laravel\Sanctum\PersonalAccessToken::count();
+        foreach (['fac@example.com', 'inst@example.com'] as $e) {
+            $this->postJson('/api/admin/login', ['email' => $e, 'password' => 'Password1'])->assertStatus(422);
+        }
+        $this->assertSame($before, \Laravel\Sanctum\PersonalAccessToken::count());
+        $this->postJson('/api/admin/login', ['email' => 'admin@example.com', 'password' => 'Password1'])->assertOk()->assertJsonPath('data.user.role', 'admin');
+    }
+
+    public function test_tokens_cannot_cross_role_boundaries(): void
+    {
+        $this->seedThree();
+        $fac = $this->loginAs('candidate', 'fac@example.com')->json('data.token');
+        $inst = $this->loginAs('company', 'inst@example.com')->json('data.token');
+        $this->withToken($fac)->getJson('/api/admin/users')->assertForbidden();
+        $this->withToken($fac)->getJson('/api/company/profile')->assertForbidden();
+        $this->withToken($inst)->getJson('/api/candidate/profile')->assertForbidden();
+        $this->withToken($inst)->getJson('/api/admin/users')->assertForbidden();
+    }
 }
