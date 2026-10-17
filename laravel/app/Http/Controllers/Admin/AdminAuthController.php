@@ -13,9 +13,11 @@ class AdminAuthController extends Controller
 {
     public function login(LoginRequest $r, AuthService $auth)
     {
-        $res = $auth->login($r->email, $r->password);
-        if (($res['user']->role ?? null) !== 'admin') {
-            $res['user']->tokens()->delete();   // revoke the token just minted for a non-admin
+        // Role is checked BEFORE a token is minted, so a faculty/institution login attempt here never creates
+        // a token and never revokes that account's own sessions.
+        try {
+            $res = $auth->login($r->email, $r->password, 'admin');
+        } catch (ValidationException) {
             throw ValidationException::withMessages(['email' => ['Invalid email or password.']]);
         }
         return ApiResponse::success($res, 'Login successful');
