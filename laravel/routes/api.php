@@ -8,6 +8,7 @@ use App\Http\Controllers\Company;
 use App\Http\Controllers\File\FileController;
 use App\Http\Controllers\Job\JobController;
 use App\Http\Controllers\Notification\NotificationController;
+use App\Http\Controllers\Track\TrackController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('institutions', [Company\BranchController::class, 'lookup'])->middleware('throttle:api');
@@ -15,6 +16,9 @@ Route::get('categories', fn () => \App\Support\ApiResponse::success(\App\Models\
 Route::get('/ping', fn () => response()->json(['success' => true, 'message' => 'pong', 'data' => null]));
 // Upload rules (types + max size per category) so the frontend checks exactly what the backend enforces.
 Route::get('limits', fn () => \App\Support\ApiResponse::success(['categories' => config('uploads.categories')]))->middleware('throttle:api');
+
+// ---------- Public visit tracking (website js/track.js; stores a random visitor id only) ----------
+Route::post('track', [TrackController::class, 'store'])->middleware('throttle:track');
 
 // ---------- Public auth ----------
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
@@ -122,6 +126,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     // ---------- Admin ----------
     Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('dashboard', [Admin\DashboardController::class, 'index']);
+        Route::get('analytics', [Admin\AnalyticsController::class, 'index']);
         Route::get('users', [Admin\AdminUserController::class, 'index']);
         Route::get('users/{id}', [Admin\AdminUserController::class, 'show'])->whereNumber('id');
         Route::put('users/{id}', [Admin\AdminUserController::class, 'update'])->whereNumber('id');
