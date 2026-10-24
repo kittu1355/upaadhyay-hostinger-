@@ -14,3 +14,4 @@ Artisan::command('jobs:expire', function () {
 
 Schedule::command('jobs:expire')->dailyAt('00:10');
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
+Schedule::call(fn () => \App\Models\SiteVisit::where('created_at', '<', now()->subDays(180))->delete())->dailyAt('01:00');
