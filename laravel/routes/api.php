@@ -140,6 +140,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::put('companies/{id}/approve', [Admin\AdminCompanyController::class, 'approve']);
         Route::put('companies/{id}/reject', [Admin\AdminCompanyController::class, 'reject']);
         Route::put('companies/{id}/block', [Admin\AdminCompanyController::class, 'block']);
+        Route::put('companies/{id}/email-verification', [Admin\AdminCompanyController::class, 'emailVerification'])->whereNumber('id');
         Route::get('jobs', [Admin\AdminJobController::class, 'index']);
         Route::put('jobs/{id}/publish', [Admin\AdminJobController::class, 'publish']);
         Route::put('jobs/{id}/unpublish', [Admin\AdminJobController::class, 'unpublish']);
@@ -155,9 +156,9 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::apiResource('categories', Admin\AdminCategoryController::class)->except('show');
 
         // Sub-branch requests (admin review)
-        Route::get('branches', [Admin\AdminBranchController::class, 'index']);
-        Route::get('branches/{id}', [Admin\AdminBranchController::class, 'show'])->whereNumber('id');
-        Route::put('branches/{id}/approve', [Admin\AdminBranchController::class, 'approve'])->whereNumber('id');
-        Route::put('branches/{id}/reject', [Admin\AdminBranchController::class, 'reject'])->whereNumber('id');
+        Route::get('branch-requests', [Admin\AdminBranchController::class, 'index']);
+        Route::get('branch-requests/{id}', [Admin\AdminBranchController::class, 'show'])->whereNumber('id');
+        Route::put('branch-requests/{id}/approve', [Admin\AdminBranchController::class, 'approve'])->whereNumber('id');
+        Route::put('branch-requests/{id}/reject', [Admin\AdminBranchController::class, 'reject'])->whereNumber('id');
     });
 });
