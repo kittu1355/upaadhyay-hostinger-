@@ -153,5 +153,11 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::delete('notifications/{id}', [Admin\AdminNotificationController::class, 'destroy']);
         Route::apiResource('skills', Admin\AdminSkillController::class)->except('show');
         Route::apiResource('categories', Admin\AdminCategoryController::class)->except('show');
+
+        // Sub-branch requests (admin review)
+        Route::get('branches', [Admin\AdminBranchController::class, 'index']);
+        Route::get('branches/{id}', [Admin\AdminBranchController::class, 'show'])->whereNumber('id');
+        Route::put('branches/{id}/approve', [Admin\AdminBranchController::class, 'approve'])->whereNumber('id');
+        Route::put('branches/{id}/reject', [Admin\AdminBranchController::class, 'reject'])->whereNumber('id');
     });
 });
