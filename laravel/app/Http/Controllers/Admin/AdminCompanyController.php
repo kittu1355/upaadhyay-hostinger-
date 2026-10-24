@@ -64,6 +64,30 @@ class AdminCompanyController extends Controller
         return ApiResponse::success($this->admin->setCompanyStatus(Company::findOrFail($id), 'rejected', $d['reason'] ?? null), 'Company rejected');
     }
 
+    /**
+     * Admin marks an email as checked by hand (no OTP). Stored in profile_data.inst:
+     * official -> em, representative -> rem, authority -> aem  (value 'ok' = verified).
+     */
+    public function emailVerification(Request $r, int $id)
+    {
+        $d = $r->validate([
+            'field' => ['required', 'in:official,representative,authority'],
+            'verified' => ['required', 'boolean'],
+        ]);
+        $company = Company::findOrFail($id);
+        $key = ['official' => 'em', 'representative' => 'rem', 'authority' => 'aem'][$d['field']];
+
+        $pd = $company->profile_data ?? [];
+        $inst = $pd['inst'] ?? [];
+        if ($d['verified']) { $inst[$key] = 'ok'; } else { unset($inst[$key]); }
+        $pd['inst'] = $inst;
+        $company->profile_data = $pd;
+        $company->save();
+
+        return ApiResponse::success(['id' => $company->id, 'field' => $d['field'], 'verified' => (bool) $d['verified']],
+            $d['verified'] ? 'Email marked verified' : 'Verification removed');
+    }
+
     public function block(Request $r, int $id)
     {
         $d = $r->validate(['reason' => ['nullable', 'string', 'max:500']]);
