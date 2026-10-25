@@ -49,7 +49,9 @@ class AdminBranchController extends Controller
         $q = Company::query()->whereNotNull('parent_id')
             ->whereIn('branch_status', ['pending', 'approved', 'rejected'])
             ->with(['parent:id,company_name,city,institution_code', 'user:id,name,email,phone'])
-            ->when($r->filled('status'), fn ($w) => $w->where('branch_admin_status', $r->status))
+           ->when($r->filled('status'), fn ($w) => $r->status === 'pending'
+    ? $w->where(fn ($x) => $x->where('branch_admin_status', 'pending')->orWhereNull('branch_admin_status'))
+    : $w->where('branch_admin_status', $r->status))
             ->when($r->filled('state'), fn ($w) => $w->where('state', 'like', $this->like($r->state)))
             ->when($r->filled('city'), fn ($w) => $w->where('city', 'like', $this->like($r->city)))
             ->when($r->filled('search'), function ($w) use ($r) {
