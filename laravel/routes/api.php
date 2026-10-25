@@ -111,9 +111,16 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::put('jobs/{id}', [Company\CompanyJobController::class, 'update']);
         Route::delete('jobs/{id}', [Company\CompanyJobController::class, 'destroy']);
 
-        Route::get('branches', [Company\BranchController::class, 'index']);
+        // sub-branch side
+        Route::get('branch', [Company\BranchController::class, 'mine']);
+        Route::post('branch/connect', [Company\BranchController::class, 'connect']);
         Route::post('branch/join', [Company\BranchController::class, 'join']);
+        Route::delete('branch', [Company\BranchController::class, 'withdraw']);
+        // main institution side
+        Route::get('branches', [Company\BranchController::class, 'index']);
+        Route::get('branches/{id}', [Company\BranchController::class, 'show'])->whereNumber('id');
         Route::put('branches/{id}/{action}', [Company\BranchController::class, 'decide'])->whereNumber('id');
+        Route::put('institution-code', [Company\BranchController::class, 'updateCode']);
         Route::get('candidates', [Company\ApplicantController::class, 'candidates']);
         Route::get('candidates/{id}', [Company\ApplicantController::class, 'candidate'])->whereNumber('id');
         Route::post('messages', [Company\ApplicantController::class, 'message']);
