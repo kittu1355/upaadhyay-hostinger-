@@ -40,6 +40,18 @@ class CandidateFileController extends Controller
         return ApiResponse::created($resume->load('file'), 'Resume uploaded');
     }
 
+    /** PUT: make one of the candidate's own resumes the primary one (the one sent with applications by default). */
+    public function setPrimary(Request $r, int $id)
+    {
+        $user = $r->user();
+        $resume = $user->resumes()->findOrFail($id);
+        DB::transaction(function () use ($user, $resume) {
+            $user->resumes()->update(['is_primary' => false]);
+            $resume->update(['is_primary' => true]);
+        });
+        return ApiResponse::success($resume->fresh('file'), 'Primary resume updated');
+    }
+
     /** POST multipart: file (pdf/jpg/png), name, issuer?, issued_date? */
     public function certificate(Request $r)
     {
