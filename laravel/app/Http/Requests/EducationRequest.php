@@ -15,7 +15,10 @@ class EducationRequest extends FormRequest
             'degree' => ['required', 'string', 'max:190'],
             'field' => ['nullable', 'string', 'max:190'],
             'start_year' => ['nullable', 'integer', 'between:1950,2100'],
-            'end_year' => ['nullable', 'integer', 'between:1950,2100', 'gte:start_year'],
+            'end_year' => ['nullable', 'integer', 'between:1950,2100', function (string $attr, $value, $fail) {
+                $start = $this->input('start_year');
+                if ($value !== null && $start !== null && $start !== '' && (int) $value < (int) $start) $fail('End year cannot be before the start year.');
+            }],
         ];
     }
 }
