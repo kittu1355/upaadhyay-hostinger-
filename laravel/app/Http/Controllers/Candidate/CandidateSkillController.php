@@ -19,7 +19,7 @@ class CandidateSkillController extends Controller
     /** Body: { "skills": ["Laravel", "MySQL"] } replaces the candidate's skill list. */
     public function store(Request $r)
     {
-        $d = $r->validate(['skills' => ['required', 'array', 'max:50'], 'skills.*' => ['string', 'max:60']]);
+        $d = $r->validate(['skills' => ['present', 'array', 'max:50'], 'skills.*' => ['string', 'max:60']]);
         return ApiResponse::success($this->svc->syncSkills($r->user(), $d['skills']), 'Skills updated');
     }
 }
