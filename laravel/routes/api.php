@@ -94,6 +94,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::post('skills', [Candidate\CandidateSkillController::class, 'store']);
 
         Route::post('resume', [Candidate\CandidateFileController::class, 'resume'])->middleware('throttle:uploads');
+        Route::put('resume/{id}/primary', [Candidate\CandidateFileController::class, 'setPrimary'])->whereNumber('id');
         Route::post('certificates', [Candidate\CandidateFileController::class, 'certificate'])->middleware('throttle:uploads');
 
         Route::get('applications', [Candidate\CandidateApplicationController::class, 'index']);
