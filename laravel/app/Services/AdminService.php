@@ -34,8 +34,9 @@ class AdminService
 
     public function setCompanyStatus(Company $company, string $status, ?string $reason = null): Company
     {
-        DB::transaction(function () use ($company, $status) {
-            $company->update(['verification_status' => $status]);
+        DB::transaction(function () use ($company, $status, $reason) {
+            // the reason is kept on the company so the institution's dashboard can show what to fix
+            $company->update(['verification_status' => $status, 'verification_note' => in_array($status, ['rejected', 'blocked'], true) ? ($reason ?: null) : null]);
             if ($status === 'blocked') $company->jobs()->where('status', 'published')->update(['status' => 'closed']);
         });
         Cache::forget('admin:dashboard');
