@@ -37,7 +37,14 @@ class AdminUserController extends Controller
 
     public function show(int $id)
     {
-        return ApiResponse::success(User::with(['candidateProfile', 'company:id,user_id,company_name'])->findOrFail($id));
+        // Everything the admin needs to see the full profile: saved form (profile_data), skills and uploaded documents.
+        return ApiResponse::success(User::with([
+            'candidateProfile',
+            'company:id,user_id,company_name',
+            'skills:id,name',
+            'resumes.file',
+            'certificates.file',
+        ])->findOrFail($id));
     }
 
     public function update(Request $r, int $id)
