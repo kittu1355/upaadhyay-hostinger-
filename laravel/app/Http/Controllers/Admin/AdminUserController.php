@@ -20,6 +20,7 @@ class AdminUserController extends Controller
             ->when($r->filled('role'), fn ($q) => $q->where('role', $r->role))
             ->when($r->filled('status'), fn ($q) => $q->where('status', $r->status))
             ->when($r->role === 'candidate', fn ($q) => $q->with('candidateProfile:id,user_id,profile_photo,city,state,current_job_title,total_experience,profile_data'))
+            ->when($r->role === 'company', fn ($q) => $q->with('company:id,user_id,company_name,city,state,verification_status,institution_code,parent_id,branch_status,branch_admin_status'))
             ->when($like, fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('email', 'like', $like)))
             ->latest('id')->paginate(min((int) $r->query('per_page', 20), 100));
         return ApiResponse::success($users);
@@ -38,13 +39,22 @@ class AdminUserController extends Controller
     public function show(int $id)
     {
         // Everything the admin needs to see the full profile: saved form (profile_data), skills and uploaded documents.
-        return ApiResponse::success(User::with([
+        // Institution accounts: the whole company row (institution form in profile_data.inst, code, approval states),
+        // its main institution / sub-branches, and the proof documents it uploaded.
+        $user = User::with([
             'candidateProfile',
-            'company:id,user_id,company_name',
+            'company.parent:id,company_name,city,state,institution_code',
+            'company.branches:id,parent_id,company_name,city,state,branch_status,branch_admin_status,verification_status',
             'skills:id,name',
             'resumes.file',
             'certificates.file',
-        ])->findOrFail($id));
+        ])->findOrFail($id);
+
+        if ($user->isCompany()) {
+            $user->setRelation('files', $user->files()->whereIn('category', ['other', 'company_logo'])
+                ->latest('id')->get(['id', 'user_id', 'original_name', 'file_type', 'file_size', 'category', 'created_at']));
+        }
+        return ApiResponse::success($user);
     }
 
     public function update(Request $r, int $id)
