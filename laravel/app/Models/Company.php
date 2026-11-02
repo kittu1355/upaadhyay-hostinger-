@@ -12,7 +12,7 @@ class Company extends Model
 
     protected $fillable = [
         'user_id', 'company_name', 'logo', 'description', 'website', 'email', 'phone',
-        'industry', 'location', 'city', 'state', 'company_size', 'verification_status', 'profile_data', 'parent_id', 'institution_code', 'branch_status', 'branch_admin_status', 'branch_submitted_at', 'branch_note',
+        'industry', 'location', 'city', 'state', 'company_size', 'verification_status', 'verification_note', 'profile_data', 'parent_id', 'institution_code', 'branch_status', 'branch_admin_status', 'branch_submitted_at', 'branch_note',
     ];
 
     protected $casts = ['profile_data' => 'array'];
