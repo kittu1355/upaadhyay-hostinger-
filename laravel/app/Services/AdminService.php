@@ -8,6 +8,7 @@ use App\Models\Job;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdminService
 {
@@ -35,19 +36,29 @@ class AdminService
     public function setCompanyStatus(Company $company, string $status, ?string $reason = null): Company
     {
         DB::transaction(function () use ($company, $status, $reason) {
-            // the reason is kept on the company so the institution's dashboard can show what to fix
-            $company->update(['verification_status' => $status, 'verification_note' => in_array($status, ['rejected', 'blocked'], true) ? ($reason ?: null) : null]);
+            $data = ['verification_status' => $status];
+            // the reason is kept on the company so the institution's dashboard can show what to fix.
+            // Guarded so approve/reject still works if the verification_note migration has not been run yet.
+            if (Schema::hasColumn('companies', 'verification_note')) {
+                $data['verification_note'] = in_array($status, ['rejected', 'blocked'], true) ? ($reason ?: null) : null;
+            }
+            $company->update($data);
             if ($status === 'blocked') $company->jobs()->where('status', 'published')->update(['status' => 'closed']);
         });
-        Cache::forget('admin:dashboard');
-        JobService::bumpCache();
+
+        // Side effects must never turn a successful status change into a 500.
+        try { Cache::forget('admin:dashboard'); JobService::bumpCache(); }
+        catch (\Throwable $e) { report($e); }
 
         $msg = [
             'approved' => ['Company approved', 'Your company has been approved. You can now publish jobs.'],
             'rejected' => ['Company rejected', 'Your company registration was rejected. Please update your profile or contact support.'],
             'blocked' => ['Company blocked', 'Your company has been blocked and its jobs were closed.'],
         ][$status] ?? null;
-        if ($msg) $this->notifications->notify($company->user_id, 'company_'.$status, $msg[0], $msg[1].($reason ? ' Reason: '.$reason : ''));
+        if ($msg) {
+            try { $this->notifications->notify($company->user_id, 'company_'.$status, $msg[0], $msg[1].($reason ? ' Reason: '.$reason : '')); }
+            catch (\Throwable $e) { report($e); }
+        }
         return $company->fresh();
     }
 
