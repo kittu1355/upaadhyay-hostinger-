@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('site_visits')) return;
         Schema::create('site_visits', function (Blueprint $t) {
             $t->id();
             $t->string('visitor_id', 64)->index();   // random id kept in the visitor's browser
