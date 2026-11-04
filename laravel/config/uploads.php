@@ -6,7 +6,7 @@ return [
     'disk' => env('UPLOAD_DISK', 'uploads'),
     // Resumes + certificates: private disk, never directly web-accessible; served through signed links (GET /api/files/{id}/link).
     'private_disk' => env('UPLOAD_PRIVATE_DISK', 'local'),
-    'private_categories' => ['resume', 'certificate'],
+    'private_categories' => ['resume', 'certificate', 'other'], // 'other' = institution proof documents (registration, authority letters, IDs): never public
 
     'categories' => [
         'profile_photo' => ['mimes' => ['jpg', 'jpeg', 'png', 'webp'], 'max_kb' => 2048],
