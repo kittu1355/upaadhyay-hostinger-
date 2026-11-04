@@ -7,6 +7,7 @@ return new class extends Migration {
     public function up(): void
     {
         // Which disk holds the bytes. NULL = legacy row stored before B2 (resolved to 'local'/'uploads' by FileUploadService).
+        if (Schema::hasColumn('files', 'disk')) return;   // already added by hand / earlier run
         Schema::table('files', function (Blueprint $t) {
             $t->string('disk', 30)->nullable()->after('storage_path');
         });
