@@ -10,8 +10,8 @@ class Application extends Model
 {
     public const STATUSES = ['applied', 'under_review', 'shortlisted', 'interview', 'selected', 'rejected', 'withdrawn'];
 
-    protected $fillable = ['job_id', 'candidate_id', 'resume_id', 'cover_letter', 'status', 'applied_at'];
-    protected $casts = ['applied_at' => 'datetime'];
+    protected $fillable = ['job_id', 'candidate_id', 'resume_id', 'cover_letter', 'answers', 'interview', 'status', 'applied_at'];
+    protected $casts = ['applied_at' => 'datetime', 'answers' => 'array', 'interview' => 'array'];
 
     public function job(): BelongsTo { return $this->belongsTo(Job::class); }
     public function candidate(): BelongsTo { return $this->belongsTo(User::class, 'candidate_id'); }
