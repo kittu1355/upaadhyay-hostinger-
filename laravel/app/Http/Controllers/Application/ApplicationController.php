@@ -34,10 +34,21 @@ class ApplicationController extends Controller
     public function updateStatus(Request $r, int $id)
     {
         $d = $r->validate([
-            'status' => ['required', 'in:under_review,shortlisted,interview,selected,rejected'],
+            'status' => ['required', 'in:applied,under_review,shortlisted,interview,selected,rejected'],
             'note' => ['nullable', 'string', 'max:1000'],
+            // "Call for interview" details (only stored when status = interview)
+            'interview' => ['nullable', 'array'],
+            'interview.phone' => ['nullable', 'string', 'max:20'],
+            'interview.mode' => ['nullable', 'in:online,offline'],
+            'interview.platform' => ['nullable', 'string', 'max:40'],
+            'interview.link' => ['nullable', 'url', 'max:500'],
+            'interview.location' => ['nullable', 'string', 'max:300'],
+            'interview.date' => ['nullable', 'date'],
+            'interview.time' => ['nullable', 'string', 'max:8'],
+            'interview.duration' => ['nullable', 'string', 'max:6'],
+            'interview.notes' => ['nullable', 'string', 'max:500'],
         ]);
-        return ApiResponse::success($this->apps->updateStatus($r->user(), $id, $d['status'], $d['note'] ?? null), 'Application status updated');
+        return ApiResponse::success($this->apps->updateStatus($r->user(), $id, $d['status'], $d['note'] ?? null, $d['interview'] ?? null), 'Application status updated');
     }
 
     public function withdraw(Request $r, int $id)
