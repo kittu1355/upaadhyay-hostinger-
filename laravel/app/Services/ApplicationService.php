@@ -42,6 +42,8 @@ class ApplicationService
             $payload = [
                 'resume_id' => $d['resume_id'] ?? null,
                 'cover_letter' => $d['cover_letter'] ?? null,
+                'answers' => ! empty($d['answers']) ? array_values($d['answers']) : null,
+                'interview' => null,
                 'status' => 'applied',
                 'applied_at' => now(),
             ];
@@ -114,13 +116,16 @@ class ApplicationService
         return $app->fresh($this->relations());
     }
 
-    public function updateStatus(User $user, int $id, string $status, ?string $note): Application
+    public function updateStatus(User $user, int $id, string $status, ?string $note, ?array $interview = null): Application
     {
         $app = Application::findOrFail($id);
         Gate::forUser($user)->authorize('updateStatus', $app);
-        $this->guardOpen($app);
+        $this->guardOpen($app, ['withdrawn']);   // the institute can still change selected / rejected (e.g. undo); only a withdrawn application is locked
 
-        $this->transition($app, $status, $user->id, $note);
+        if ($status === 'interview' && $interview) {
+            $app->update(['interview' => $interview]);   // saved first so the notification below can quote it
+        }
+        $this->transition($app, $status, $user->id, $note, $interview);
         return $app->fresh($this->relations());
     }
 
@@ -140,7 +145,7 @@ class ApplicationService
     }
 
     // ------------------------------------------------------------------ internals
-    private function transition(Application $app, string $to, int $byUserId, ?string $note): void
+    private function transition(Application $app, string $to, int $byUserId, ?string $note, ?array $interview = null): void
     {
         $from = $app->status;
         DB::transaction(function () use ($app, $from, $to, $byUserId, $note) {
@@ -149,12 +154,20 @@ class ApplicationService
         });
 
         // Candidates hear about every employer-side change (not about their own withdrawal).
-        if ($to !== 'withdrawn') {
+        if ($to !== 'withdrawn' && $to !== 'applied') {   // no notification when the institute just undoes a step
             $app->loadMissing('job:id,title');
             $label = str_replace('_', ' ', $to);
-            $this->notifications->notify($app->candidate_id, 'application_'.$to, 'Application '.$label,
-                "Your application for {$app->job->title} is now: {$label}.",
-                ['application_id' => $app->id, 'job_id' => $app->job_id, 'status' => $to]);
+            $msg = "Your application for {$app->job->title} is now: {$label}.";
+            $data = ['application_id' => $app->id, 'job_id' => $app->job_id, 'status' => $to];
+            if ($to === 'interview' && $interview) {
+                $where = ($interview['mode'] ?? '') === 'online'
+                    ? 'Online'.(! empty($interview['platform']) ? ' ('.$interview['platform'].')' : '').(! empty($interview['link']) ? ' - '.$interview['link'] : '')
+                    : 'In person'.(! empty($interview['location']) ? ' - '.$interview['location'] : '');
+                $msg = "Interview call for {$app->job->title}: ".trim(($interview['date'] ?? '').' '.($interview['time'] ?? '')).". {$where}."
+                    .(! empty($interview['phone']) ? " Contact: {$interview['phone']}." : '');
+                $data['interview'] = $interview;
+            }
+            $this->notifications->notify($app->candidate_id, 'application_'.$to, 'Application '.$label, $msg, $data);
         }
     }
 
@@ -165,9 +178,9 @@ class ApplicationService
         ]);
     }
 
-    private function guardOpen(Application $app): void
+    private function guardOpen(Application $app, ?array $terminal = null): void
     {
-        if (in_array($app->status, self::TERMINAL, true)) {
+        if (in_array($app->status, $terminal ?? self::TERMINAL, true)) {
             throw new HttpResponseException(ApiResponse::error("This application is already {$app->status} and can't be changed.", 422));
         }
     }
